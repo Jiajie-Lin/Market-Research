@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CIP Code Competitor &amp; Pricing Tool — IPEDS 2023–24</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f1f5f9;
+  color: #1e293b;
+  min-height: 100vh;
+}
+
+.site-header {
+  background: #0f172a;
+  color: white;
+  padding: 18px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.site-header h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: -.01em; }
+.data-badge {
+  font-size: .72rem;
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+  padding: 3px 10px;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+main { max-width: 1500px; margin: 0 auto; padding: 24px; }
+
+/* ── Search card ── */
+.search-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  margin-bottom: 20px;
+}
+.filter-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label {
+  font-size: .73rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.ac-wrap { position: relative; }
+#cip-input {
+  height: 42px;
+  width: 260px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-size: .95rem;
+  outline: none;
+  color: #0f172a;
+  transition: border-color .15s;
+}
+#cip-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+
+.filter-row select {
+  height: 42px;
+  min-width: 150px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-size: .88rem;
+  outline: none;
+  color: #1e293b;
+  background: white;
+  cursor: pointer;
+  transition: border-color .15s;
+  appearance: auto;
+}
+.filter-row select:focus { border-color: #2563eb; }
+
+/* ── Autocomplete ── */
+.ac-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 360px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: white;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.12);
+  z-index: 200;
+}
+.ac-item {
+  padding: 9px 14px;
+  cursor: pointer;
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  border-bottom: 1px solid #f8fafc;
+}
+.ac-item:last-child { border-bottom: none; }
+.ac-item:hover, .ac-item.active { background: #eff6ff; }
+.ac-code { font-weight: 600; font-family: monospace; color: #1d4ed8; min-width: 72px; font-size: .88rem; }
+.ac-series { color: #64748b; font-size: .8rem; }
+.ac-hint { padding: 10px 14px; color: #94a3b8; font-size: .82rem; }
+
+/* ── Status messages ── */
+.loading-msg {
+  text-align: center;
+  padding: 48px;
+  color: #64748b;
+  font-size: .95rem;
+}
+.spinner {
+  display: inline-block;
+  width: 18px; height: 18px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin .65s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.welcome {
+  text-align: center;
+  padding: 64px 24px;
+  color: #94a3b8;
+}
+.welcome h2 { font-size: 1.05rem; color: #64748b; margin-bottom: 8px; font-weight: 500; }
+.welcome p { font-size: .87rem; }
+
+/* ── Stats row ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  background: white;
+  border-radius: 10px;
+  padding: 14px 18px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+.stat-val {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+  letter-spacing: -.02em;
+}
+.stat-lbl {
+  font-size: .7rem;
+  color: #94a3b8;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-weight: 600;
+}
+
+/* ── Results header ── */
+.results-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.results-hdr h2 { font-size: .9rem; font-weight: 600; color: #64748b; }
+
+.export-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 15px;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s;
+  letter-spacing: .01em;
+}
+.export-btn:hover { background: #1d4ed8; }
+
+/* ── Table ── */
+.table-wrap {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.07);
+  overflow: hidden;
+}
+.table-scroll { max-height: 620px; overflow-y: auto; overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+
+thead th {
+  background: #1e293b;
+  color: #94a3b8;
+  font-weight: 700;
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  padding: 11px 14px;
+  text-align: left;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  user-select: none;
+}
+thead th.sortable { cursor: pointer; }
+thead th.sortable:hover { color: #e2e8f0; }
+thead th.num { text-align: right; }
+
+.sort-icon::after { content: ' ↕'; opacity: .35; font-size: .65rem; }
+th.sort-asc  .sort-icon::after { content: ' ↑'; opacity: 1; color: #60a5fa; }
+th.sort-desc .sort-icon::after { content: ' ↓'; opacity: 1; color: #60a5fa; }
+
+tbody tr { border-bottom: 1px solid #f1f5f9; transition: background .08s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #f8fafc; }
+
+tbody td { padding: 11px 14px; vertical-align: middle; }
+tbody td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: 'Courier New', monospace;
+  font-size: .82rem;
+}
+
+.inst-name { font-weight: 500; color: #0f172a; line-height: 1.35; }
+.loc-text { font-size: .78rem; color: #64748b; }
+
+/* ── Badges ── */
+.badge {
+  display: inline-block;
+  font-size: .69rem;
+  font-weight: 700;
+  border-radius: 5px;
+  padding: 2px 7px;
+  white-space: nowrap;
+  letter-spacing: .02em;
+}
+.badge-pub  { background: #dbeafe; color: #1d4ed8; }
+.badge-np   { background: #ede9fe; color: #6d28d9; }
+.badge-fp   { background: #fef3c7; color: #b45309; }
+.badge-unk  { background: #f1f5f9; color: #64748b; }
+.badge-lvl  { background: #f1f5f9; color: #475569; margin: 2px 2px 2px 0; }
+.levels-td  { max-width: 200px; }
+
+.null-val { color: #cbd5e1; font-size: .78rem; }
+
+.empty-state {
+  text-align: center;
+  padding: 56px;
+  color: #94a3b8;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  font-size: .9rem;
+}
+
+@media (max-width: 768px) {
+  main { padding: 12px; }
+  .site-header { padding: 14px 16px; }
+  .filter-row { flex-direction: column; }
+  #cip-input { width: 100%; }
+  .filter-row select { width: 100%; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <h1>CIP Code Competitor &amp; Pricing Tool</h1>
+  <span class="data-badge">IPEDS 2023–24</span>
+</header>
+
+<main>
+  <div class="search-card">
+    <div class="filter-row">
+      <div class="field">
+        <label for="cip-input">CIP Code</label>
+        <div class="ac-wrap">
+          <input type="text" id="cip-input" placeholder="e.g. 11.0101 or 52" autocomplete="off" spellcheck="false">
+          <div id="ac-dropdown" class="ac-dropdown" style="display:none"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="filter-level">Award Level</label>
+        <select id="filter-level"><option value="">All Award Levels</option></select>
+      </div>
+      <div class="field">
+        <label for="filter-sector">Sector</label>
+        <select id="filter-sector">
+          <option value="">All Sectors</option>
+          <option value="1">Public</option>
+          <option value="2">Private Nonprofit</option>
+          <option value="3">For-Profit</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="filter-state">State</label>
+        <select id="filter-state"><option value="">All States</option></select>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading-msg" class="loading-msg" style="display:none">
+    <span class="spinner"></span>Loading IPEDS data…
+  </div>
+
+  <div id="welcome-msg" class="welcome">
+    <h2>Enter a CIP code above to see competing institutions and tuition pricing</h2>
+    <p>IPEDS 2023–24 · Completions · Institutional Directory · Cost of Attendance</p>
+  </div>
+
+  <div id="results-area" style="display:none">
+    <div class="stats-row" id="stats-row"></div>
+    <div class="results-hdr">
+      <h2 id="results-title"></h2>
+      <button class="export-btn" id="export-btn">⬇ Export CSV</button>
+    </div>
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th data-col="name" class="sortable">Institution <span class="sort-icon"></span></th>
+              <th data-col="state">Location</th>
+              <th data-col="sector">Sector</th>
+              <th data-col="levels">Award Level(s)</th>
+              <th data-col="t1" class="sortable num">UG In-State <span class="sort-icon"></span></th>
+              <th data-col="t2" class="sortable num">UG Out-State <span class="sort-icon"></span></th>
+              <th data-col="t5" class="sortable num">Grad In-State <span class="sort-icon"></span></th>
+              <th data-col="t6" class="sortable num">Grad Out-State <span class="sort-icon"></span></th>
+              <th data-col="completions" class="sortable num">Completions <span class="sort-icon"></span></th>
+            </tr>
+          </thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="empty-msg" class="empty-state" style="display:none">
+    No institutions found matching your filters.
+  </div>
+</main>
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────────
+const AWARD_LEVELS = {
+  1:  'Certificate (<1 yr)',
+  2:  'Certificate (1–2 yr)',
+  3:  "Associate's",
+  4:  'Certificate (2–4 yr)',
+  5:  "Bachelor's",
+  6:  'Post-Bacc Cert.',
+  7:  "Master's",
+  8:  "Post-Master's Cert.",
+  17: 'Doctoral (Research)',
+  18: 'Doctoral (Professional)',
+  19: 'Doctoral (Other)'
+};
+
+const SECTOR = {
+  1: { label: 'Public',            cls: 'badge-pub' },
+  2: { label: 'Private Nonprofit', cls: 'badge-np'  },
+  3: { label: 'For-Profit',        cls: 'badge-fp'  }
+};
+
+const CIP_SERIES = {
+  '01':'Agriculture & Related Sciences',     '03':'Natural Resources & Conservation',
+  '04':'Architecture & Design',              '05':'Area, Ethnic & Gender Studies',
+  '09':'Communication & Journalism',         '10':'Communications Technologies',
+  '11':'Computer & Information Sciences',    '12':'Personal & Culinary Services',
+  '13':'Education',                          '14':'Engineering',
+  '15':'Engineering Technologies',           '16':'Foreign Languages',
+  '19':'Family & Consumer Sciences',         '22':'Legal Professions',
+  '23':'English Language & Literature',      '24':'Liberal Arts & General Studies',
+  '25':'Library Science',                    '26':'Biological & Biomedical Sciences',
+  '27':'Mathematics & Statistics',           '29':'Military Technologies',
+  '30':'Multi/Interdisciplinary Studies',    '31':'Parks, Recreation & Leisure',
+  '38':'Philosophy & Religious Studies',     '39':'Theology & Religious Vocations',
+  '40':'Physical Sciences',                  '41':'Science Technologies',
+  '42':'Psychology',                         '43':'Homeland Security & Law Enforcement',
+  '44':'Public Administration & Social Svcs','45':'Social Sciences',
+  '46':'Construction Trades',                '47':'Mechanic & Repair Technologies',
+  '48':'Precision Production',               '49':'Transportation',
+  '50':'Visual & Performing Arts',           '51':'Health Professions & Clinical Sciences',
+  '52':'Business, Management & Marketing',   '54':'History'
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let DATA = null;
+let currentCip = '';
+let currentRows = [];
+let sortCol = 'completions';
+let sortDir = -1;
+let acIdx = -1;
+
+// ── Load data ─────────────────────────────────────────────────────────────────
+async function loadData() {
+  show('loading-msg'); hide('welcome-msg');
+  try {
+    const res = await fetch('data/ipeds_data.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    DATA = await res.json();
+    hide('loading-msg'); show('welcome-msg');
+    populateStateAll();
+  } catch (e) {
+    el('loading-msg').innerHTML =
+      `<span style="color:#ef4444">&#9888; Failed to load data: ${e.message}.<br>
+       Run <code>python build_data.py</code> to generate <code>data/ipeds_data.json</code>.</span>`;
+  }
+}
+
+// ── State filter (all states on load) ────────────────────────────────────────
+function populateStateAll() {
+  const states = [...new Set(Object.values(DATA.inst).map(i => i[2]))].sort();
+  const sel = el('filter-state');
+  sel.innerHTML = '<option value="">All States</option>';
+  states.forEach(s => {
+    const o = document.createElement('option');
+    o.value = s; o.textContent = s;
+    sel.appendChild(o);
+  });
+}
+
+function populateStateForCip(records) {
+  const stateSet = new Set();
+  records.forEach(([uid]) => {
+    const inst = DATA.inst[String(uid)];
+    if (inst) stateSet.add(inst[2]);
+  });
+  const prev = el('filter-state').value;
+  const sel = el('filter-state');
+  sel.innerHTML = '<option value="">All States</option>';
+  [...stateSet].sort().forEach(s => {
+    const o = document.createElement('option');
+    o.value = s; o.textContent = s;
+    sel.appendChild(o);
+  });
+  if ([...stateSet].includes(prev)) sel.value = prev;
+}
+
+function populateLevelFilter(records) {
+  const levels = [...new Set(records.map(r => r[1]))].sort((a, b) => a - b);
+  const prev = parseInt(el('filter-level').value) || null;
+  const sel = el('filter-level');
+  sel.innerHTML = '<option value="">All Award Levels</option>';
+  levels.forEach(l => {
+    const o = document.createElement('option');
+    o.value = l; o.textContent = AWARD_LEVELS[l] || `Level ${l}`;
+    sel.appendChild(o);
+  });
+  if (prev && levels.includes(prev)) sel.value = prev;
+}
+
+// ── Autocomplete ──────────────────────────────────────────────────────────────
+const cipInput = el('cip-input');
+const acDrop = el('ac-dropdown');
+
+cipInput.addEventListener('input', onCipInput);
+cipInput.addEventListener('keydown', onCipKey);
+cipInput.addEventListener('blur', () => setTimeout(closeAc, 160));
+document.addEventListener('click', e => { if (!e.target.closest('.ac-wrap')) closeAc(); });
+
+function onCipInput() {
+  const q = cipInput.value.trim();
+  if (!DATA || !q) { closeAc(); return; }
+  const matches = DATA.cips.filter(c => c.startsWith(q)).slice(0, 60);
+  if (!matches.length) {
+    acDrop.innerHTML = '<div class="ac-hint">No matching CIP codes</div>';
+  } else {
+    acDrop.innerHTML = matches.map((c, i) => {
+      const series = c.split('.')[0].padStart(2, '0');
+      const desc = CIP_SERIES[series] || '';
+      return `<div class="ac-item" data-cip="${c}" data-i="${i}">
+        <span class="ac-code">${c}</span>
+        <span class="ac-series">${esc(desc)}</span>
+      </div>`;
+    }).join('');
+    acDrop.querySelectorAll('.ac-item').forEach(item =>
+      item.addEventListener('mousedown', e => { e.preventDefault(); selectCip(item.dataset.cip); })
+    );
+  }
+  acDrop.style.display = 'block';
+  acIdx = -1;
+}
+
+function onCipKey(e) {
+  const items = acDrop.querySelectorAll('.ac-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    acIdx = Math.min(acIdx + 1, items.length - 1);
+    highlightAc(items);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    acIdx = Math.max(acIdx - 1, -1);
+    highlightAc(items);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (acIdx >= 0 && items[acIdx]) { selectCip(items[acIdx].dataset.cip); }
+    else { closeAc(); search(cipInput.value.trim()); }
+  } else if (e.key === 'Escape') {
+    closeAc();
+  }
+}
+
+function highlightAc(items) {
+  items.forEach((it, i) => it.classList.toggle('active', i === acIdx));
+  if (acIdx >= 0) items[acIdx].scrollIntoView({ block: 'nearest' });
+}
+
+function closeAc() { acDrop.style.display = 'none'; acIdx = -1; }
+
+function selectCip(cip) {
+  cipInput.value = cip;
+  closeAc();
+  search(cip);
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+function search(cip) {
+  if (!DATA || !cip) return;
+  currentCip = cip;
+  const records = DATA.comp[cip];
+  if (!records) { showEmpty(`No completions data found for CIP ${cip}.`); return; }
+  populateLevelFilter(records);
+  populateStateForCip(records);
+  render();
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  if (!DATA || !currentCip) return;
+  const records = DATA.comp[currentCip];
+  if (!records) { showEmpty(); return; }
+
+  const lvlFilter  = parseInt(el('filter-level').value)  || null;
+  const secFilter  = parseInt(el('filter-sector').value) || null;
+  const stFilter   = el('filter-state').value || null;
+
+  // Aggregate completions by institution
+  const byInst = {};
+  for (const [uid, level, count] of records) {
+    if (lvlFilter !== null && level !== lvlFilter) continue;
+    const key = String(uid);
+    if (!byInst[key]) byInst[key] = { levels: new Set(), completions: 0 };
+    byInst[key].levels.add(level);
+    byInst[key].completions += count;
+  }
+
+  // Build row objects with institution info and apply filters
+  const rows = [];
+  for (const [uid, agg] of Object.entries(byInst)) {
+    const inst = DATA.inst[uid];
+    if (!inst) continue;
+    const [name, city, state, control, t1, t2, t5, t6] = inst;
+    if (secFilter !== null && control !== secFilter) continue;
+    if (stFilter  !== null && state  !== stFilter)   continue;
+    rows.push({
+      uid, name, city, state, sector: control,
+      levels: [...agg.levels].sort((a, b) => a - b),
+      completions: agg.completions,
+      t1, t2, t5, t6
+    });
+  }
+
+  if (!rows.length) { showEmpty('No institutions found matching your filters.'); return; }
+
+  // Sort
+  rows.sort((a, b) => {
+    let va = a[sortCol], vb = b[sortCol];
+    const nullVal = sortDir === 1 ? Infinity : -Infinity;
+    if (va == null) va = nullVal;
+    if (vb == null) vb = nullVal;
+    if (typeof va === 'string') return sortDir * va.localeCompare(vb);
+    return sortDir * (va - vb);
+  });
+
+  currentRows = rows;
+  hide('welcome-msg'); hide('empty-msg'); show('results-area');
+  renderStats(rows);
+  renderTable(rows);
+
+  const lvlLabel = lvlFilter ? ` · ${AWARD_LEVELS[lvlFilter] || 'Level ' + lvlFilter}` : '';
+  el('results-title').textContent =
+    `${rows.length.toLocaleString()} institution${rows.length !== 1 ? 's' : ''} — CIP ${currentCip}${lvlLabel}`;
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function renderStats(rows) {
+  const ugVals   = rows.map(r => r.t1).filter(v => v != null);
+  const gradVals = rows.map(r => r.t5).filter(v => v != null);
+  const totalComp = rows.reduce((s, r) => s + r.completions, 0);
+
+  const avg = arr => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : null;
+  const fmtAvg = v => v != null ? '$' + v.toLocaleString() : '—';
+  const ugAvg = avg(ugVals);
+  const ugMin = ugVals.length ? Math.min(...ugVals) : null;
+  const ugMax = ugVals.length ? Math.max(...ugVals) : null;
+  const gradAvg = avg(gradVals);
+
+  const rangeStr = ugMin != null
+    ? `$${ugMin.toLocaleString()} – $${ugMax.toLocaleString()}`
+    : '—';
+
+  el('stats-row').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-val">${rows.length.toLocaleString()}</div>
+      <div class="stat-lbl">Institutions</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">${fmtAvg(ugAvg)}</div>
+      <div class="stat-lbl">Avg UG In-State</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="font-size:1rem;letter-spacing:-.01em">${rangeStr}</div>
+      <div class="stat-lbl">UG In-State Range</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">${fmtAvg(gradAvg)}</div>
+      <div class="stat-lbl">Avg Grad In-State</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">${totalComp.toLocaleString()}</div>
+      <div class="stat-lbl">Total Completions</div>
+    </div>`;
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+function renderTable(rows) {
+  el('results-body').innerHTML = rows.map(r => {
+    const sec = SECTOR[r.sector] || { label: 'Other', cls: 'badge-unk' };
+    const lvlBadges = r.levels
+      .map(l => `<span class="badge badge-lvl">${AWARD_LEVELS[l] || 'Level ' + l}</span>`)
+      .join('');
+    return `<tr>
+      <td><div class="inst-name">${esc(r.name)}</div></td>
+      <td><span class="loc-text">${esc(r.city)}, ${esc(r.state)}</span></td>
+      <td><span class="badge ${sec.cls}">${sec.label}</span></td>
+      <td class="levels-td">${lvlBadges}</td>
+      <td class="num">${fmtDollar(r.t1)}</td>
+      <td class="num">${fmtDollar(r.t2)}</td>
+      <td class="num">${fmtDollar(r.t5)}</td>
+      <td class="num">${fmtDollar(r.t6)}</td>
+      <td class="num">${r.completions.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Sorting ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('thead th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) {
+      sortDir *= -1;
+    } else {
+      sortCol = col;
+      sortDir = col === 'name' ? 1 : -1;
+    }
+    document.querySelectorAll('thead th').forEach(t => t.classList.remove('sort-asc', 'sort-desc'));
+    th.classList.add(sortDir === 1 ? 'sort-asc' : 'sort-desc');
+    render();
+  });
+});
+
+// Set initial sort indicator
+document.querySelector('thead th[data-col="completions"]').classList.add('sort-desc');
+
+// ── Export CSV ────────────────────────────────────────────────────────────────
+el('export-btn').addEventListener('click', () => {
+  if (!currentRows.length) return;
+  const headers = [
+    'UNITID','Institution','City','State','Sector','Award Level(s)',
+    'UG In-State Tuition','UG Out-of-State Tuition',
+    'Grad In-State Tuition','Grad Out-of-State Tuition','Completions'
+  ];
+  const csvRows = currentRows.map(r => {
+    const secLabel = SECTOR[r.sector]?.label || r.sector || '';
+    const lvlStr = r.levels.map(l => AWARD_LEVELS[l] || `Level ${l}`).join('; ');
+    return [r.uid, r.name, r.city, r.state, secLabel, lvlStr,
+            r.t1 ?? '', r.t2 ?? '', r.t5 ?? '', r.t6 ?? '', r.completions];
+  });
+  const csv = [headers, ...csvRows].map(row =>
+    row.map(v => {
+      const s = String(v ?? '');
+      return (s.includes(',') || s.includes('"') || s.includes('\n'))
+        ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(',')
+  ).join('\r\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), {
+    href: url,
+    download: `cip_${currentCip.replace('.', '_')}_competitors_ipeds2024.csv`
+  });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+// ── Filter change listeners ───────────────────────────────────────────────────
+['filter-level', 'filter-sector', 'filter-state'].forEach(id =>
+  el(id).addEventListener('change', render)
+);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function el(id) { return document.getElementById(id); }
+function show(id) { el(id).style.display = ''; }
+function hide(id) { el(id).style.display = 'none'; }
+
+function showEmpty(msg) {
+  hide('results-area'); hide('welcome-msg');
+  el('empty-msg').textContent = msg || 'No institutions found matching your filters.';
+  show('empty-msg');
+}
+
+function fmtDollar(v) {
+  return v != null ? '$' + Number(v).toLocaleString() : '<span class="null-val">—</span>';
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
